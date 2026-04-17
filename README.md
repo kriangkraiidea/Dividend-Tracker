@@ -3,7 +3,7 @@
 เว็บแอปสำหรับติดตามพอร์ตหุ้นปันผล คำนวณรายได้ และวางแผน Passive Income
 ใช้งานได้ทันทีผ่านเบราว์เซอร์ — ไม่ต้องติดตั้ง
 
-🔗 **Live Demo:** https://kriangkraiidea.github.io/dividend-tracker/
+🔗 **Live Demo:** https://kriangkraiidea.github.io/Dividend-Tracker/
 
 ---
 
