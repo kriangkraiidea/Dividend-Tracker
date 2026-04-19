@@ -348,10 +348,11 @@
     <div id="page-calendar" class="page">
       <div class="page-title">ปฏิทินปันผล</div>
       <div class="page-sub">คาดการณ์รายรับปันผลรายเดือน</div>
-      <div class="metric-grid" style="grid-template-columns:repeat(3,1fr);">
+      <div class="metric-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="metric-card"><div class="metric-label">รวมปีนี้ (ประมาณ)</div><div class="metric-val green" id="cal-yearly">฿0</div></div>
-        <div class="metric-card"><div class="metric-label">เดือนสูงสุด</div><div class="metric-val cyan" id="cal-best-month">—</div></div>
-        <div class="metric-card"><div class="metric-label">เดือนที่ไม่มีปันผล</div><div class="metric-val amber" id="cal-dry">0</div></div>
+        <div class="metric-card"><div class="metric-label">เฉลี่ยต่อเดือน</div><div class="metric-val cyan" id="cal-avg-mo">—</div></div>
+        <div class="metric-card"><div class="metric-label">เดือนสูงสุด</div><div class="metric-val amber" id="cal-best-month">—</div></div>
+        <div class="metric-card"><div class="metric-label">เดือนที่ไม่มีปันผล</div><div class="metric-val" id="cal-dry" style="color:var(--muted)">0</div></div>
       </div>
       <div class="card" style="padding:20px;">
         <div class="cal-grid" id="cal-grid"></div>
@@ -464,6 +465,9 @@
     </button>
     <button class="mobile-nav-btn" data-page="calendar">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>ปฏิทิน
+    </button>
+    <button class="mobile-nav-btn" data-page="compare">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>เปรียบเทียบ
     </button>
     <button class="mobile-nav-btn" data-page="calculator">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>คำนวณ
@@ -987,17 +991,24 @@ function renderCompare(){
     return;
   }
   const taxR=settings.tax/100;
-  const divS=stocks.filter(s=>s.div>0);
-  const best=divS.length?divS.reduce((a,b)=>b.div/(b.price||b.cost)>a.div/(a.price||a.cost)?b:a,divS[0]):null;
+  // Rank stocks by yield descending (only those with dividend)
+  const ranked=[...stocks].map(s=>({id:s.id,yld:s.div>0?(s.div/(s.price||s.cost)*100):0,hd:s.div>0}))
+    .sort((a,b)=>b.yld-a.yld);
+  const yieldRank={};
+  let rankNum=1;
+  ranked.forEach(r=>{ if(r.hd){ yieldRank[r.id]=rankNum++; } });
+  const RANK_LABELS=['★ Yield สูงสุด','★ Yield อันดับ 2','★ Yield อันดับ 3','★ Yield อันดับ 4','★ Yield อันดับ 5'];
   wrap.innerHTML=`<div class="compare-grid">`+
   stocks.map((s,i)=>{
     const mp=s.price||s.cost;const val=s.shares*mp;
     const dYr=s.shares*s.div;const yld=mp>0?s.div/mp*100:0;
     const pl=(mp-s.cost)*s.shares;const hd=s.div>0;
-    const isH=best&&s.id===best.id;
-    return`<div class="compare-card ${isH?'highlight':''}">
-      ${isH?'<div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">★ Yield สูงสุด</div>':''}
-      ${!hd?'<div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">ไม่มีปันผล</div>':''}
+    const rank=yieldRank[s.id];
+    const isTop=rank===1;
+    const rankLabel=hd?(rank<=5?RANK_LABELS[rank-1]:`★ Yield อันดับ ${rank}`):'ไม่มีปันผล';
+    const rankColor=!hd?'var(--muted)':isTop?'var(--accent)':'var(--accent2)';
+    return`<div class="compare-card ${isTop?'highlight':''}">
+      <div style="font-size:10px;color:${rankColor};text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">${rankLabel}</div>
       <div class="compare-stock-name" style="color:${COLORS[i%10]}">${s.ticker}</div>
       ${s.name?`<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">${s.name}</div>`:'<div style="margin-bottom:10px;"></div>'}
       <div class="compare-row"><span class="compare-key">Yield</span><span class="compare-val" style="color:${hd?(yld>=6?'var(--accent3)':'var(--accent)'):'var(--muted)'}">${hd?yld.toFixed(2)+'%':'—'}</span></div>
@@ -1033,7 +1044,10 @@ function renderCalendar(){
       ${total>0?`<div class="cal-total">${cur()}${fmt(total)}</div>`:''}
     </div>`;
   }).join('');
-  document.getElementById('cal-yearly').textContent=cur()+fmt(totals.reduce((a,b)=>a+b,0));
+  const yearlyTotal=totals.reduce((a,b)=>a+b,0);
+  document.getElementById('cal-yearly').textContent=cur()+fmt(yearlyTotal);
+  const activeMos=totals.filter(x=>x>0).length;
+  document.getElementById('cal-avg-mo').textContent=activeMos>0?cur()+fmt(yearlyTotal/activeMos):'—';
   const bi=totals.indexOf(Math.max(...totals));
   document.getElementById('cal-best-month').textContent=Math.max(...totals)>0?MONTHS_TH[bi]+' · '+cur()+fmt(totals[bi]):'—';
   document.getElementById('cal-dry').textContent=totals.filter(x=>x===0).length+' เดือน';
@@ -1114,7 +1128,6 @@ function planUpdate(){
         <div style="position:absolute;top:0;left:${gw}%;height:7px;width:2px;background:rgba(245,158,11,.9);"></div>
       </div>
       <span style="font-size:11px;font-family:var(--mono);min-width:72px;text-align:right;color:${isR?'var(--accent)':'var(--muted)'};">${cur()}${fmtM(d.cap)}</span>
-      ${isR?'<span class="metric-badge badge-green" style="font-size:10px;">✓</span>':''}
     </div>`;
   }).join('');
 }
